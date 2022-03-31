@@ -84,6 +84,19 @@ $fidsElements = [
     'primaryMarketingAirlineCode' => 'The FS code of the primary marketing airline.',
 ];
 
+// FETCH FIDS ACTION
+function fids_fetch() {
+    global $wpdb;
+    global $fidsDataTableName;
+
+
+    $wpdb->insert($fidsDataTableName, [
+        'raw_data' => json_encode([]),
+        'updated_at' => date('Y-m-d')
+    ]);
+}
+add_action('fids_fetch_cron_hook', 'fids_fetch');
+
 // PLUGIN ACTIVATION
 function fids_api_activation() {
     global $wpdb;
@@ -146,6 +159,10 @@ function fids_api_activation() {
             ]);
         }
     }
+
+    if(!wp_next_scheduled('fids_fetch_cron_hook')) {
+        wp_schedule_event(time(), 'fids_interval', 'fids_fetch_cron_hook');
+    }
 }
 register_activation_hook( __FILE__, 'fids_api_activation');
 // TODO check hooks
@@ -156,12 +173,15 @@ function fids_api_deactivation() {
     global $fidsSettingsTableName;
     global $fidsElementsTableName;
 
-    $dataTableDeleteSql = "DELETE TABLE $fidsDataTableName";
-    $settingsTableDeleteSql = "DELETE TABLE $fidsSettingsTableName";
-    $fidsElementsTableDeleteSql = "DELETE TABLE $fidsElementsTableName";
+    $dataTableDeleteSql = "DROP TABLE IF EXISTS $fidsDataTableName";
+    $settingsTableDeleteSql = "DROP TABLE IF EXISTS  $fidsSettingsTableName";
+    $fidsElementsTableDeleteSql = "DROP TABLE IF EXISTS  $fidsElementsTableName";
     $wpdb->query($dataTableDeleteSql);
     $wpdb->query($settingsTableDeleteSql);
     $wpdb->query($fidsElementsTableDeleteSql);
+
+    $timestamp = wp_next_scheduled('fids_fetch_cron_hook');
+    wp_unschedule_event($timestamp, 'fids_fetch_cron_hook');
 }
 register_deactivation_hook( __FILE__, 'fids_api_deactivation');
 
@@ -222,3 +242,25 @@ function fids_admin_update_general_settings() {
     wp_redirect(admin_url('admin.php?page=fids-settings'));
 }
 add_action( 'admin_post_fids_update_general_settings', 'fids_admin_update_general_settings' );
+
+// PROVIDE SHORTCODE
+function fids_shortcode($attrs) {
+    $attrs = shortcode_atts(array(
+        'airport' => 'no foo',
+        'type' => ''
+    ), $attrs, 'fids' );
+
+
+    return $attrs['airport'] . ' - ' . $attrs['type'];
+}
+add_shortcode('fids', 'fids_shortcode');
+
+
+// CREATE INTERVAL
+function fids_add_cron_interval( $schedules ) {
+    $schedules['fids_interval'] = array(
+        'interval' => 5,
+        'display' => esc_html__('FIDS fetch interval'));
+    return $schedules;
+}
+add_filter('cron_schedules', 'fids_add_cron_interval' );

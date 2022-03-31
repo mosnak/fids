@@ -1,3 +1,7 @@
+<?php
+// TODO implement errors
+// TODO implement sorting
+?>
 <div class="fids_admin_page_wrapper">
     <h2>General settings</h2>
     <form action="<?php echo get_site_url() . '/wp-admin/admin-post.php'?>" method="post">
