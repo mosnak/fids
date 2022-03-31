@@ -250,10 +250,37 @@ function fids_shortcode($attrs) {
         'type' => ''
     ), $attrs, 'fids' );
 
-
     return $attrs['airport'] . ' - ' . $attrs['type'];
 }
 add_shortcode('fids', 'fids_shortcode');
+
+// REGISTER ASSETS
+function fids_register_script() {
+    global $post;
+    if(has_shortcode($post->post_content, 'fids')) {
+        wp_register_script('fids_script', plugins_url('assets/main.js', __FILE__), array('jquery'));
+        wp_enqueue_script('fids_script');
+        wp_localize_script( 'fids_script', 'fids_client',
+            array( 'ajax_url' => admin_url( 'admin-ajax.php' ) ) );
+
+        wp_register_style('fids_style', plugins_url('assets/main.css', __FILE__));
+        wp_enqueue_style('fids_style');
+    }
+}
+add_action('wp_enqueue_scripts', 'fids_register_script');
+
+
+
+// AJAX FETCH ACTION
+function fids_ajax_handler() {
+    $array_result = array(
+        'data' => 'your data',
+        'message' => 'your message'
+    );
+    wp_send_json($array_result);
+    wp_die();
+}
+add_action('wp_ajax_fids', 'fids_ajax_handler');
 
 
 // CREATE INTERVAL
