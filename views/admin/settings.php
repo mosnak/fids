@@ -1,13 +1,18 @@
 <div class="fids_admin_page_wrapper">
     <h2>General settings</h2>
-    <form action="">
+    <form action="<?php echo get_site_url() . '/wp-admin/admin-post.php'?>" method="post">
+        <input type="hidden" name="action" value="fids_update_general_settings">
         <div class="fids_admin_page_input">
             <label for="">APP ID</label>
-            <input type="text" name="app_key" value="<?php echo $defaultSettings->app_id ?>">
+            <input type="text" name="app_id" value="<?php echo $defaultSettings->app_id ?>">
         </div>
         <div class="fids_admin_page_input">
             <label for="">APP SECRET</label>
-            <input type="text" name="app_secret" <?php echo $defaultSettings->app_key ?>>
+            <input type="text" name="app_key" value="<?php echo $defaultSettings->app_key ?>">
+        </div>
+        <div class="fids_admin_page_input">
+            <label for="">Airports <br><small>Comma separated</small></label>
+            <input type="text" name="airports" value="<?php echo $defaultSettings->airports ?>">
         </div>
         <div class="fids_admin_page_input fids_mt30">
             <input type="submit" value="UPDATE">
@@ -17,7 +22,7 @@
     <div class="fids_admin_page_fids_elements">
         <h2>Element visibility settings</h2>
         <form action="<?php echo get_site_url() . '/wp-admin/admin-post.php'?>" method="post">
-            <input type="hidden" name="action" value="update_visible_elements">
+            <input type="hidden" name="action" value="fids_update_visible_elements">
             <?php
             $arrivalElements = json_decode($defaultSettings->arrival_elements);
             $departureElements = json_decode($defaultSettings->departure_elements);

@@ -107,7 +107,7 @@ function fids_api_activation() {
 		id mediumint(9) NOT NULL AUTO_INCREMENT,
 		app_id varchar (255),
 		app_key varchar (255),
-		airport_code varchar (255) DEFAULT '',
+		airports text DEFAULT '',
 		departure_elements text (255) DEFAULT '',
 		arrival_elements text (255) DEFAULT '',
 		state varchar (255),
@@ -148,17 +148,20 @@ function fids_api_activation() {
     }
 }
 register_activation_hook( __FILE__, 'fids_api_activation');
-
+// TODO check hooks
 // PLUGIN DEACTIVATION
 function fids_api_deactivation() {
     global $wpdb;
     global $fidsDataTableName;
     global $fidsSettingsTableName;
+    global $fidsElementsTableName;
 
     $dataTableDeleteSql = "DELETE TABLE $fidsDataTableName";
     $settingsTableDeleteSql = "DELETE TABLE $fidsSettingsTableName";
+    $fidsElementsTableDeleteSql = "DELETE TABLE $fidsElementsTableName";
     $wpdb->query($dataTableDeleteSql);
     $wpdb->query($settingsTableDeleteSql);
+    $wpdb->query($fidsElementsTableDeleteSql);
 }
 register_deactivation_hook( __FILE__, 'fids_api_deactivation');
 
@@ -191,13 +194,31 @@ function fids_admin_update_visible_elements() {
         'departure_elements' => json_encode($selectedArrivalElements),
         'arrival_elements' => json_encode($selectedDepartureElements),
     ], ['state' => 'default']);
+
     // update element titles
     foreach($_POST['custom_titles'] as $key => $val) {
         $wpdb->update($fidsElementsTableName, [
-            'internal_title' => $val,
+            'internal_title' => stripslashes($val),
         ], ['api_key' => $key]);
     }
 
     wp_redirect(admin_url('admin.php?page=fids-settings'));
 }
-add_action( 'admin_post_update_visible_elements', 'fids_admin_update_visible_elements' );
+add_action( 'admin_post_fids_update_visible_elements', 'fids_admin_update_visible_elements' );
+
+function fids_admin_update_general_settings() {
+    global $wpdb;
+    global $fidsSettingsTableName;
+
+    $airports = implode(',', array_map(function($el) {
+        return trim($el);
+    }, explode(',', $_POST['airports'])));
+    $wpdb->update($fidsSettingsTableName, [
+        'app_id' => $_POST['app_id'],
+        'app_key' => $_POST['app_key'],
+        'airports' => $airports
+    ], ['state' => 'default']);
+
+    wp_redirect(admin_url('admin.php?page=fids-settings'));
+}
+add_action( 'admin_post_fids_update_general_settings', 'fids_admin_update_general_settings' );
