@@ -21,27 +21,31 @@
             <?php
             $arrivalElements = json_decode($defaultSettings->arrival_elements);
             $departureElements = json_decode($defaultSettings->departure_elements);
-            foreach ($fidsElements as $key => $val) {
+            foreach ($elements as $element) {
             ?>
-                <div class="row fids_mt30">
-                    <div class="fids_mb20"><b><?php echo $val ?></b></div>
-                    <div class="fids_admin_page_input fids_flex_row">
-                        <input
-                                id="<?php echo $key . '_arrival'?>"
-                                name="arrivalElements[]"
-                                value="<?php echo $key?>"
-                                <?php echo in_array($key, $arrivalElements) ? 'checked="checked"' : '' ?>
-                                type="checkbox">
-                        <label for="<?php echo $key . '_arrival'?>">Show on <b>Arrival</b> section</label>
+                <div class="row fids_mt30 fids_mb50">
+                    <div class="fids_mb20"><b><?php echo $element->api_title ?></b></div>
+                    <div class="fids_admin_page_input fids_mb20">
+                        <label for="">Custom title <br> <small>will be displayed on the public pages</small></label>
+                        <input type="text" name="custom_titles[<?php echo $element->api_key ?>]" value="<?php echo $element->internal_title != '' ? $element->internal_title : $element->api_title; ?>">
                     </div>
                     <div class="fids_admin_page_input fids_flex_row">
                         <input
-                                id="<?php echo $key . '_departure'?>"
-                                name="departureElements[]"
-                                value="<?php echo $key?>"
-                                <?php echo in_array($key, $departureElements) ? 'checked="checked"' : '' ?>
+                                id="<?php echo $element->api_key . '_arrival'?>"
+                                name="arrivalElements[]"
+                                value="<?php echo $element->api_key?>"
+                                <?php echo in_array($element->api_key, $arrivalElements) ? 'checked="checked"' : '' ?>
                                 type="checkbox">
-                        <label for="<?php echo $key . '_departure'?>">Show on <b>Departure</b> section</label>
+                        <label for="<?php echo $element->api_key . '_arrival'?>">Show on <b>Arrival</b> section</label>
+                    </div>
+                    <div class="fids_admin_page_input fids_flex_row">
+                        <input
+                                id="<?php echo $element->api_key . '_departure'?>"
+                                name="departureElements[]"
+                                value="<?php echo $element->api_key?>"
+                                <?php echo in_array($element->api_key, $departureElements) ? 'checked="checked"' : '' ?>
+                                type="checkbox">
+                        <label for="<?php echo $element->api_key . '_departure'?>">Show on <b>Departure</b> section</label>
                     </div>
                 </div>
             <?php
@@ -61,6 +65,9 @@
 
     .fids_mb20 {
         margin-bottom: 20px;
+    }
+    .fids_mb50 {
+        margin-bottom: 50px;
     }
 
     .fids_admin_page_wrapper {

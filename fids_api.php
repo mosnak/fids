@@ -6,10 +6,16 @@
 
 require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
 
+// STORES DATA RECEIVED FROM API
 global $fidsDataTableName;
 $fidsDataTableName  = 'fids_api_data';
+// STORES API CREDENTIALS AND MAPPER DATA
 global $fidsSettingsTableName;
 $fidsSettingsTableName  = 'fids_api_settings';
+// STORES DEFAULT ELEMENTS
+global $fidsElementsTableName;
+$fidsElementsTableName  = 'fids_api_elements';
+// DEFAULT ELEMENTS
 global $fidsElements;
 $fidsElements = [
     'flightId' => 'Numeric flight ID',
@@ -81,10 +87,15 @@ $fidsElements = [
 // PLUGIN ACTIVATION
 function fids_api_activation() {
     global $wpdb;
+    // table names
     global $fidsDataTableName;
     global $fidsSettingsTableName;
-    $charset_collate = $wpdb->get_charset_collate();
+    global $fidsElementsTableName;
+    // elements array
+    global $fidsElements;
 
+    // prepare sql
+    $charset_collate = $wpdb->get_charset_collate();
     $dataTableSql = "CREATE TABLE IF NOT EXISTS $fidsDataTableName (
 		id mediumint(9) NOT NULL AUTO_INCREMENT,
 		type int(9) NOT NULL,
@@ -102,8 +113,20 @@ function fids_api_activation() {
 		state varchar (255),
 		UNIQUE KEY id (id)
 	) $charset_collate;";
+    $fidsElementsTableSql = "CREATE TABLE IF NOT EXISTS $fidsElementsTableName (
+		id mediumint(9) NOT NULL AUTO_INCREMENT,
+		api_key varchar (255) NOT NULL,
+		api_title varchar (255) NOT NULL,
+		internal_title varchar (255) DEFAULT '',
+		UNIQUE KEY id (id)
+	) $charset_collate;";
+
+    // execute sql
     dbDelta($dataTableSql);
     dbDelta($settingsTableSql);
+    dbDelta($fidsElementsTableSql);
+
+    // init DB
     $hasDefaultSettings = $wpdb->get_results("SELECT * FROM $fidsSettingsTableName WHERE state = 'default'");
     if(!$hasDefaultSettings) {
         $wpdb->insert($fidsSettingsTableName, [
@@ -113,6 +136,15 @@ function fids_api_activation() {
             'arrival_elements' => json_encode([]),
             'state' => 'default'
         ]);
+    }
+    $hasElements = $wpdb->get_results("SELECT * FROM $fidsElementsTableName ");
+    if(!count($hasElements)) {
+        foreach ($fidsElements as $key => $val) {
+            $wpdb->insert($fidsElementsTableName, [
+                'api_key' => $key,
+                'api_title' => $val,
+            ]);
+        }
     }
 }
 register_activation_hook( __FILE__, 'fids_api_activation');
@@ -134,8 +166,10 @@ register_deactivation_hook( __FILE__, 'fids_api_deactivation');
 function fids_api_settings_menu_page() {
     global $wpdb;
     global $fidsSettingsTableName;
-    global $fidsElements;
+    global $fidsElementsTableName;
+
     $defaultSettings = $wpdb->get_results("SELECT * FROM $fidsSettingsTableName WHERE state = 'default'")[0];
+    $elements = $wpdb->get_results("SELECT * FROM $fidsElementsTableName");
 
     include_once(__DIR__ . '/views/admin/settings.php');
 }
@@ -148,10 +182,21 @@ add_action('admin_menu', 'fids_api_settings_menu');
 function fids_admin_update_visible_elements() {
     global $wpdb;
     global $fidsSettingsTableName;
+    global $fidsElementsTableName;
+
+    // update visibility
+    $selectedArrivalElements = isset($_POST['departureElements']) ? $_POST['departureElements'] : [];
+    $selectedDepartureElements = isset($_POST['departureElements']) ? $_POST['departureElements'] : [];
     $wpdb->update($fidsSettingsTableName, [
-        'departure_elements' => json_encode($_POST['departureElements']),
-        'arrival_elements' => json_encode($_POST['arrivalElements']),
+        'departure_elements' => json_encode($selectedArrivalElements),
+        'arrival_elements' => json_encode($selectedDepartureElements),
     ], ['state' => 'default']);
+    // update element titles
+    foreach($_POST['custom_titles'] as $key => $val) {
+        $wpdb->update($fidsElementsTableName, [
+            'internal_title' => $val,
+        ], ['api_key' => $key]);
+    }
 
     wp_redirect(admin_url('admin.php?page=fids-settings'));
 }
