@@ -23,8 +23,11 @@
     </form>
 
     <div class="fids_admin_page_fids_elements">
-        <h2>Element visibility settings</h2>
+        <h2>Element visibility settings </h2><small>Sort, change titles, mark as visible on the shortcode</small>
         <form action="<?php echo get_site_url() . '/wp-admin/admin-post.php'?>" method="post">
+<!--            <div class="fids_admin_page_input fids_mt30">-->
+<!--                <input type="submit" value="UPDATE">-->
+<!--            </div>-->
             <input type="hidden" name="action" value="fids_update_visible_elements">
             <input id="orderInput" type="hidden" name="order" value="">
             <?php
@@ -54,7 +57,7 @@
                             <input
                                     id="<?php echo $element->api_key . '_departure'?>"
                                     name="departureElements[]"
-                                    value="<?php echo $element->api_key?>"
+                                    value="<?php echo $element->api_key ?>"
                                     <?php echo in_array($element->api_key, $departureElements) ? 'checked="checked"' : '' ?>
                                     type="checkbox">
                             <label for="<?php echo $element->api_key . '_departure'?>">Show on <b>Departure</b> section</label>
@@ -73,9 +76,9 @@
 
 <script>
     jQuery( function() {
-        jQuery( "#sortable" ).sortable({
-            stop: function( event, ui ) {
-                const data = jQuery( "#sortable" ).sortable('toArray', {
+        jQuery('#sortable').sortable({
+            stop: function(event, ui) {
+                const data = jQuery('#sortable').sortable('toArray', {
                     attribute: 'data-key'
                 });
                 console.log(data)
