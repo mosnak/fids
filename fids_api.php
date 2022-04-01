@@ -88,12 +88,113 @@ $fidsElements = [
 function fids_fetch() {
     global $wpdb;
     global $fidsDataTableName;
+    global $fidsSettingsTableName;
 
+    $radDataFromApi = '
+    {
+    "fidsData": [
+        {
+            "flightId": "298260941",
+            "lastUpdatedTime": "02:16 PM",
+            "lastUpdatedTimeUtc": "10:16 PM",
+            "lastUpdatedDate": "02/10/2013",
+            "lastUpdatedDateUtc": "02/10/2013",
+            "dayOffset": 0,
+            "statusCode": "S",
+            "airlineName": "SkyWest Airlines",
+            "airlineCode": "OO",
+            "flightNumber": "6416",
+            "airlineLogoUrlPng": "http://dskx8vepkd3ev.cloudfront.net/airline-logos/v2/logos/png/300x100/oo-logo.png",
+            "airlineLogoUrlSvg": "http://dskx8vepkd3ev.cloudfront.net/airline-logos/v2/logos/svg/oo-logo.svg",
+            "isCodeshare": false,
+            "operatedFlightNumber": "6416",
+            "operatingAirlineName": "SkyWest Airlines",
+            "operatingAirlineCode": "OO",
+            "originCity": "San Francisco",
+            "originFamiliarName": "San Francisco",
+            "originStateCode": "CA",
+            "originCountryCode": "US",
+            "destinationAirportName": "Albuquerque International Airport",
+            "destinationAirportCode": "ABQ",
+            "destinationCity": "Albuquerque",
+            "destinationFamiliarName": "Albuquerque",
+            "destinationStateCode": "NM",
+            "destinationCountryCode": "US",
+            "flight": "OO 6416",
+            "delayed": false,
+            "remarks": "On-Time",
+            "remarksWithTime": "On-Time",
+            "remarksCode": "ON_TIME",
+            "airportCode": "ABQ",
+            "airportName": "Albuquerque International Airport",
+            "city": "Albuquerque",
+            "familiarName": "Albuquerque",
+            "scheduledTime": "12:50 PM",
+            "currentTime": "12:50 PM",
+            "scheduledGateTime": "12:50 PM",
+            "currentGateTime": "12:50 PM",
+            "codesharesAsNames": [
+                "United Airlines 6416",
+                "ANA - All Nippon Airways 7328",
+                "Air Canada 4030"
+            ],
+            "codesharesAsCodes": [
+                "UA 6416",
+                "NH 7328",
+                "AC 4030"
+            ],
+            "uplineAirportNames": [
+                "Portland International Airport "
+            ],
+            "uplineAirportCodes": [
+                "PDX"
+            ],
+            "weather": "Clear",
+            "temperatureC": 5,
+            "temperatureF": 41
+        }
+    ]
+}';
 
-    $wpdb->insert($fidsDataTableName, [
-        'raw_data' => json_encode([]),
-        'updated_at' => date('Y-m-d')
-    ]);
+    $settings = $wpdb->get_results("SELECT * FROM $fidsSettingsTableName WHERE state = 'default'");
+    if(!count($settings)) {
+        // TODO implement errors table
+        return;
+    }
+    $airports = explode(',', $settings[0]->airports);
+    if(!count($airports) || $settings[0]->app_id == '' || $settings[0]->app_key == '') {
+        return;
+    }
+    foreach ($airports as $airport) {
+        $types = [1, 2]; // 1 = arrival, 2 = departure
+        foreach ($types as $type) {
+            $existingRecord = $wpdb->get_results("SELECT * FROM $fidsDataTableName WHERE `airport`='$airport' AND `type`='$type'");
+            if(!count($existingRecord)) {
+                $shouldFetch = true;
+            } else {
+                // TODO implement IF for time
+                $shouldFetch = true;
+            }
+            if($shouldFetch) {
+                // TODO implement fetch action
+                $data = $radDataFromApi;
+                if(count($existingRecord)) {
+                    $wpdb->update($fidsDataTableName, [
+                        'raw_data' => $data,
+                        'updated_at' => date('Y-m-d H:i:s'),
+                        'type' => $type
+                    ], ['airport' => $airport, 'type' => $type]);
+                } else {
+                    $wpdb->insert($fidsDataTableName, [
+                        'raw_data' => $data,
+                        'updated_at' => date('Y-m-d H:i:s'),
+                        'airport' => $airport,
+                        'type' => $type
+                    ]);
+                }
+            }
+        }
+    }
 }
 add_action('fids_fetch_cron_hook', 'fids_fetch');
 
@@ -111,7 +212,8 @@ function fids_api_activation() {
     $charset_collate = $wpdb->get_charset_collate();
     $dataTableSql = "CREATE TABLE IF NOT EXISTS $fidsDataTableName (
 		id mediumint(9) NOT NULL AUTO_INCREMENT,
-		type int(9) NOT NULL,
+		type mediumint(9) NOT NULL,
+		airport varchar (255) NOT NULL,
 		raw_data text NOT NULL,
 		updated_at datetime NOT NULL,
 		UNIQUE KEY id (id)
@@ -128,6 +230,7 @@ function fids_api_activation() {
 	) $charset_collate;";
     $fidsElementsTableSql = "CREATE TABLE IF NOT EXISTS $fidsElementsTableName (
 		id mediumint(9) NOT NULL AUTO_INCREMENT,
+		order_id mediumint(9) NOT NULL DEFAULT 0,
 		api_key varchar (255) NOT NULL,
 		api_title varchar (255) NOT NULL,
 		internal_title varchar (255) DEFAULT '',
@@ -165,7 +268,8 @@ function fids_api_activation() {
     }
 }
 register_activation_hook( __FILE__, 'fids_api_activation');
-// TODO check hooks
+// TODO check hooks, this deletes all tables on deactivation which is not good
+
 // PLUGIN DEACTIVATION
 function fids_api_deactivation() {
     global $wpdb;
@@ -192,7 +296,8 @@ function fids_api_settings_menu_page() {
     global $fidsElementsTableName;
 
     $defaultSettings = $wpdb->get_results("SELECT * FROM $fidsSettingsTableName WHERE state = 'default'")[0];
-    $elements = $wpdb->get_results("SELECT * FROM $fidsElementsTableName");
+    $elements = $wpdb->get_results("SELECT * FROM $fidsElementsTableName ORDER BY order_id");
+    wp_enqueue_script('jquery-ui-sortable');
 
     include_once(__DIR__ . '/views/admin/settings.php');
 }
@@ -222,6 +327,16 @@ function fids_admin_update_visible_elements() {
         ], ['api_key' => $key]);
     }
 
+    // update order
+    $order = explode(',', $_POST['order']);
+    $i = 1;
+    foreach($order as $orderKey) {
+        $wpdb->update($fidsElementsTableName, [
+            'order_id' => $i
+        ], ['api_key' => $orderKey]);
+        $i++;
+    }
+
     wp_redirect(admin_url('admin.php?page=fids-settings'));
 }
 add_action( 'admin_post_fids_update_visible_elements', 'fids_admin_update_visible_elements' );
@@ -245,6 +360,8 @@ add_action( 'admin_post_fids_update_general_settings', 'fids_admin_update_genera
 
 // PROVIDE SHORTCODE
 function fids_shortcode($attrs) {
+    fids_fetch();
+
     $attrs = shortcode_atts(array(
         'airport' => 'no foo',
         'type' => ''
@@ -290,4 +407,13 @@ function fids_add_cron_interval( $schedules ) {
         'display' => esc_html__('FIDS fetch interval'));
     return $schedules;
 }
-add_filter('cron_schedules', 'fids_add_cron_interval' );
+add_filter('cron_schedules', 'fids_add_cron_interval');
+
+// DOMAIN FUNCTIONS
+
+function getElements($airport, $type) {
+    global $wpdb;
+    global $fidsElementsTableName;
+
+//    $elements =
+}
