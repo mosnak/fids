@@ -4,7 +4,7 @@ let reloadCount = 0
 
 jQuery('document').ready(function() {
 
-    jQuery('.fids-refresh-btn').on('click', function() {
+    jQuery('body').on('click', '.fids-refresh-btn', function() {
         reloadCount = 0
         jQuery('.fids-refresh-btn').css('display', 'none');
     })
@@ -14,10 +14,14 @@ jQuery('document').ready(function() {
             reloadCount++;
             jQuery.post(fids_client.ajax_url, {
                     'action': 'fids',
-                    'foobar_id':   123
+                    'airport': fidsAirport,
+                    'type': fidsType,
                 },
                 function(response) {
-                    console.log('The server responded: ', response);
+                    jQuery('#fids').replaceWith(response)
+                    if(reloadCount === reloadCountMax) {
+                        jQuery('.fids-refresh-btn').css('display', 'block');
+                    }
                 }
             );
             if(reloadCount === reloadCountMax) {
@@ -26,6 +30,3 @@ jQuery('document').ready(function() {
         }
     }, reloadInterval * 1000)
 })
-
-
-// TODO implemet button

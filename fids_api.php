@@ -86,7 +86,6 @@ $fidsElements = [
 
 // FETCH FIDS ACTION
 function fids_fetch() {
-    // TODO remove return
     return;
     global $wpdb;
     global $fidsDataTableName;
@@ -310,23 +309,19 @@ function fids_admin_update_general_settings() {
 add_action( 'admin_post_fids_update_general_settings', 'fids_admin_update_general_settings' );
 
 // PROVIDE SHORTCODE
-function fids_shortcode($attrs) {
-    $attrs = shortcode_atts(array(
-        'airport' => 'ABQ',
-        'type' => 'departures'
-    ), $attrs, 'fids' );
 
+function getShortcodeHTML($attrAirport, $attrType) {
     global $wpdb;
     global $fidsSettingsTableName;
     global $fidsElementsTableName;
-    $type = $attrs['type'] == 'departures' ? 2 : 1;
+    $type = $attrType == 'departures' ? 2 : 1;
 
     // get headers
     $settings = $wpdb->get_results("SELECT * FROM $fidsSettingsTableName WHERE `state`='default'");
     if(!count($settings)){
         return '';
     }
-    if($attrs['type'] == 'departures') {
+    if($attrType == 'departures') {
         $headers = json_decode($settings[0]->departure_elements, true);
     } else {
         $headers = json_decode($settings[0]->arrival_elements, true);
@@ -348,7 +343,7 @@ function fids_shortcode($attrs) {
     }
 
     // get data
-    $elementsData = getElementsData($attrs['airport'], $attrs['type']);
+    $elementsData = getElementsData($attrAirport, $attrType);
     if(!$elementsData) {
         return '';
     }
@@ -366,6 +361,18 @@ function fids_shortcode($attrs) {
 
     return $out;
 }
+
+function fids_shortcode($attrs) {
+    $attrs = shortcode_atts(array(
+        'airport' => 'ABQ',
+        'type' => 'departures'
+    ), $attrs, 'fids' );
+
+    $html = getShortcodeHTML($attrs['airport'], $attrs['type']);
+    $html .= '<script>const fidsAirport = "'. $attrs['airport'] .'"; const fidsType = "'. $attrs['type'] .'"</script>';
+
+    return $html;
+}
 add_shortcode('fids', 'fids_shortcode');
 
 // REGISTER ASSETS
@@ -373,9 +380,10 @@ function fids_register_script() {
     global $post;
     if(has_shortcode($post->post_content, 'fids')) {
         wp_register_script('fids_script', plugins_url('assets/main.js', __FILE__), array('jquery'));
-        wp_enqueue_script('fids_script');
-        wp_localize_script( 'fids_script', 'fids_client',
-            array( 'ajax_url' => admin_url( 'admin-ajax.php' ) ) );
+        wp_enqueue_script('fids_script', '', [], false, true);
+        wp_localize_script( 'fids_script', 'fids_client', [
+            'ajax_url' => admin_url( 'admin-ajax.php')
+        ]);
 
         wp_register_style('fids_style', plugins_url('assets/main.css', __FILE__));
         wp_enqueue_style('fids_style');
@@ -383,15 +391,12 @@ function fids_register_script() {
 }
 add_action('wp_enqueue_scripts', 'fids_register_script');
 
-
-
 // AJAX FETCH ACTION
 function fids_ajax_handler() {
-    $array_result = array(
-        'data' => 'your data',
-        'message' => 'your message'
-    );
-    wp_send_json($array_result);
+    $airport = $_POST['airport'];
+    $type = $_POST['type'];
+    $html = getShortcodeHTML($airport, $type);
+    echo $html;
     wp_die();
 }
 add_action('wp_ajax_fids', 'fids_ajax_handler');
