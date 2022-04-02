@@ -93,7 +93,6 @@ function fids_fetch() {
 
     $settings = $wpdb->get_results("SELECT * FROM $fidsSettingsTableName WHERE state = 'default'");
     if(!count($settings)) {
-        // TODO implement errors table
         return;
     }
     $airports = explode(',', $settings[0]->airports);
@@ -111,15 +110,16 @@ function fids_fetch() {
             if(!count($existingRecord)) {
                 $shouldFetch = true;
             } else {
-                // TODO implement IF for time
-                $shouldFetch = true;
+                $now = new DateTime();
+                $diff = $now->diff(new DateTime($existingRecord[0]->updated_at));
+                $shouldFetch = $diff->i > 0 ? true : false;
             }
             if($shouldFetch) {
                 $stingType = $type == 1 ? 'arrivals' : 'departures';
                 $apiURL = 'https://api.flightstats.com/flex/fids/rest/v1/json/' . $airport . '/' . $stingType . '?appId=' . $settings[0]->app_id . '&appKey=' . $settings[0]->app_key;
                 $apiURL .= '&requestedFields=' . $requestedFields;
                 $response = wp_remote_get($apiURL);
-                $data = wp_remote_retrieve_body( $response );
+                $data = wp_remote_retrieve_body($response);
                 if(count($existingRecord)) {
                     $wpdb->update($fidsDataTableName, [
                         'raw_data' => $data,
@@ -156,7 +156,7 @@ function fids_api_activation() {
 		id mediumint(9) NOT NULL AUTO_INCREMENT,
 		type mediumint(9) NOT NULL,
 		airport varchar (255) NOT NULL,
-		raw_data text NOT NULL,
+		raw_data longtext NOT NULL,
 		updated_at datetime NOT NULL,
 		UNIQUE KEY id (id)
 	) $charset_collate;";
@@ -342,7 +342,6 @@ function fids_shortcode($attrs) {
     // get data
     $data = getElementsData($attrs['airport'], $attrs['type']);
     if(!$data) {
-        // TODO implement errors
         return '';
     }
 
@@ -388,8 +387,7 @@ add_action('wp_ajax_fids', 'fids_ajax_handler');
 // CREATE INTERVAL
 function fids_add_cron_interval( $schedules ) {
     $schedules['fids_interval'] = array(
-        // TODO change to one minute
-        'interval' => 500,
+        'interval' => 60,
         'display' => esc_html__('FIDS fetch interval'));
     return $schedules;
 }

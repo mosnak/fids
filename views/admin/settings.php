@@ -1,5 +1,4 @@
 <?php
-// TODO implement errors
 ?>
 <div class="fids_admin_page_wrapper">
     <h2>General settings</h2>

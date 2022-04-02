@@ -1,1 +1,33 @@
 /*Custom style for the plugin*/
+
+.fids-wrapper {
+    width: 100%;
+    margin: 0 auto;
+}
+
+.fids-headers {
+    display: flex;
+    align-items: stretch;
+    font-weight: bold;
+}
+
+.fids-header {
+    display: flex;
+    flex: 1;
+}
+
+.fids-rows {
+    display: flex;
+    flex-direction: column;
+}
+
+.fids-row {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+}
+
+.fids-row-element {
+    display: flex;
+    flex: 1;
+}
