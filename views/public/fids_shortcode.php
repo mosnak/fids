@@ -1,6 +1,4 @@
 <?php
-// TODO FIX CSS table
-
 $remarkCodes = [
     'ON_TIME' => 'Flight is expected to arrive/depart on time',
     'BOARDING' => 'Flight is currently boarding',
@@ -20,6 +18,8 @@ $arrayElementTypes = ['codesharesAsNames', 'codesharesAsCodes', 'uplineAirportNa
 
 ?>
 <!--PLUGIN STARTS FROM HERE-->
+<div class="fids-updated_locally">Data updated <span><?php echo $lastUpdatedBefore ?></span></div>
+<div class="fids-refresh-btn" style="display: none">Refresh data</div>
 <div class="fids-wrapper">
     <div class="fids-headers">
         <?php
@@ -48,14 +48,14 @@ $arrayElementTypes = ['codesharesAsNames', 'codesharesAsCodes', 'uplineAirportNa
                      <?php
                      } else if(in_array($hwt['key'], $arrayElementTypes)) {
                          if(isset($d[$hwt['key']])) {
-                             $str = implode(',', $d[$hwt['key']]);
+                             $str = implode(', ', $d[$hwt['key']]);
                              echo $str;
                          } else {
                              echo ''; // no data available
                          }
                      } else if ($hwt['key'] == 'remarksCode') {
                          if(isset($d[$hwt['key']])) {
-                             echo $remarkCodes[$d[$hwt['key']]];
+                             echo $remarkCodes[strtoupper($d[$hwt['key']])];
                          } else {
                              echo ''; // No remark code
                          }

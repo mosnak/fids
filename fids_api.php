@@ -86,6 +86,8 @@ $fidsElements = [
 
 // FETCH FIDS ACTION
 function fids_fetch() {
+    // TODO remove return
+    return;
     global $wpdb;
     global $fidsDataTableName;
     global $fidsSettingsTableName;
@@ -210,10 +212,16 @@ function fids_api_activation() {
     }
 }
 register_activation_hook( __FILE__, 'fids_api_activation');
-// TODO check hooks, this deletes all tables on deactivation which is not good
 
 // PLUGIN DEACTIVATION
 function fids_api_deactivation() {
+    $timestamp = wp_next_scheduled('fids_fetch_cron_hook');
+    wp_unschedule_event($timestamp, 'fids_fetch_cron_hook');
+}
+register_deactivation_hook( __FILE__, 'fids_api_deactivation');
+
+// PLUGIN DEACTIVATION
+function fids_api_uninstall() {
     global $wpdb;
     global $fidsDataTableName;
     global $fidsSettingsTableName;
@@ -229,7 +237,7 @@ function fids_api_deactivation() {
     $timestamp = wp_next_scheduled('fids_fetch_cron_hook');
     wp_unschedule_event($timestamp, 'fids_fetch_cron_hook');
 }
-register_deactivation_hook( __FILE__, 'fids_api_deactivation');
+register_uninstall_hook( __FILE__, 'fids_api_uninstall');
 
 // ADD PLUGIN MENU ITEMS
 function fids_api_settings_menu_page() {
@@ -340,10 +348,15 @@ function fids_shortcode($attrs) {
     }
 
     // get data
-    $data = getElementsData($attrs['airport'], $attrs['type']);
-    if(!$data) {
+    $elementsData = getElementsData($attrs['airport'], $attrs['type']);
+    if(!$elementsData) {
         return '';
     }
+    $data = $elementsData['allElements'];
+    $now = new DateTime();
+    $diff = $now->diff(new DateTime($elementsData['updated_at']));
+//    $lastUpdatedBefore = $diff->i > 2 ? $diff->i . ' minutes ago' : 'minute ago';
+    $lastUpdatedBefore = $elementsData['updated_at'] . ' UTC';
 
     // output
     ob_start();
@@ -406,5 +419,8 @@ function getElementsData($airport, $type) {
         return false;
     }
     $allElements = json_decode($elements[0]->raw_data, true);
-    return $allElements['fidsData'];
+    return [
+        'allElements' => $allElements['fidsData'],
+        'updated_at' => $elements[0]->updated_at
+    ];
 }

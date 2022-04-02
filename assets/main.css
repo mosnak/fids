@@ -1,33 +1,28 @@
 /*Custom style for the plugin*/
 
 .fids-wrapper {
+    display: table;
     width: 100%;
     margin: 0 auto;
 }
 
 .fids-headers {
-    display: flex;
-    align-items: stretch;
+    display: table-header-group;
     font-weight: bold;
 }
 
 .fids-header {
-    display: flex;
-    flex: 1;
+    display: table-cell;
 }
 
 .fids-rows {
-    display: flex;
-    flex-direction: column;
+    display: table-row-group;
 }
 
 .fids-row {
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
+    display: table-row;
 }
 
 .fids-row-element {
-    display: flex;
-    flex: 1;
+    display: table-cell;
 }
