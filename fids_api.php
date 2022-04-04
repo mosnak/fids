@@ -86,7 +86,6 @@ $fidsElements = [
 
 // FETCH FIDS ACTION
 function fids_fetch() {
-    return;
     global $wpdb;
     global $fidsDataTableName;
     global $fidsSettingsTableName;
