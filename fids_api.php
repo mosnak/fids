@@ -15,6 +15,9 @@ $fidsSettingsTableName  = 'fids_api_settings';
 // STORES DEFAULT ELEMENTS
 global $fidsElementsTableName;
 $fidsElementsTableName  = 'fids_api_elements';
+// STORES QUERY PARAMS
+global $paramsTableName;
+$paramsTableName = 'fids_query_params';
 // DEFAULT ELEMENTS
 global $fidsElements;
 $fidsElements = [
@@ -83,6 +86,24 @@ $fidsElements = [
     'primaryMarketingAirlineName' => 'The name of the primary marketing airline.',
     'primaryMarketingAirlineCode' => 'The FS code of the primary marketing airline.',
 ];
+global $defaultParamSettings;
+$defaultParamSettings = [
+    'excludeAirlines' => '',
+    'includeAirlines' => '',
+    'includeCodeshares' => 1,
+    'terminal' => '',
+    'timeFormat' => 12,
+    'timeWindowBegin' => '',
+    'timeWindowEnd' => '',
+    'maxFlights' => '',
+    'lateMinutes' => '',
+    'boardingMinutes' => '',
+    'useRunwayTimes' => 0,
+    'excludeCargoOnlyFlights' => 0,
+    'sort1' => '',
+    'sort2' => '',
+    'sort3' => '',
+];
 
 // FETCH FIDS ACTION
 function fids_fetch() {
@@ -90,6 +111,7 @@ function fids_fetch() {
     global $fidsDataTableName;
     global $fidsSettingsTableName;
     global $fidsElementsTableName;
+    global $paramsTableName;
 
     $settings = $wpdb->get_results("SELECT * FROM $fidsSettingsTableName WHERE state = 'default'");
     if(!count($settings)) {
@@ -118,6 +140,41 @@ function fids_fetch() {
                 $stingType = $type == 1 ? 'arrivals' : 'departures';
                 $apiURL = 'https://api.flightstats.com/flex/fids/rest/v1/json/' . $airport . '/' . $stingType . '?appId=' . $settings[0]->app_id . '&appKey=' . $settings[0]->app_key;
                 $apiURL .= '&requestedFields=' . $requestedFields;
+                $DBparams = $wpdb->get_results("SELECT * FROM $paramsTableName");
+                $paramQuery = '';
+                $sort1 = '';
+                $sort2 = '';
+                $sort3 = '';
+                foreach ($DBparams as $param) {
+                    if($param->param_val != '' && $param->param_key != 'sort1' && $param->param_key != 'sort2' && $param->param_key != 'sort3') {
+                        if($param->param_key == 'includeCodeshares' || $param->param_key == 'useRunwayTimes' || $param->param_key == 'excludeCargoOnlyFlights') {
+                            $paramVal = $param->param_val == 0 ? 'false' : true;
+                        } else {
+                            $paramVal = $param->param_val;
+                        }
+                        $paramQuery .= '&'.$param->param_key . '=' . $paramVal;
+                    }
+                    if($param->param_key == 'sort1') {
+                        $sort1 = $param->param_val;
+                    }
+                    if($param->param_key == 'sort2') {
+                        $sort2 = $param->param_val;
+                    }
+                    if($param->param_key == 'sort3') {
+                        $sort3 = $param->param_val;
+                    }
+                }
+                $apiURL .= $paramQuery;
+                $sortArr = [];
+                foreach ([$sort1, $sort2, $sort3] as $s) {
+                    if($s != '') {
+                        $sortArr[] = $s;
+                    }
+                }
+                if($sort1 != '' || $sort2 != '' || $sort3 != '') {
+                    $sort = implode(',', $sortArr);
+                    $apiURL .= '&sortFields=' . $sort;
+                }
                 $response = wp_remote_get($apiURL);
                 $data = wp_remote_retrieve_body($response);
                 if(count($existingRecord)) {
@@ -147,8 +204,11 @@ function fids_api_activation() {
     global $fidsDataTableName;
     global $fidsSettingsTableName;
     global $fidsElementsTableName;
+    global $paramsTableName;
     // elements array
     global $fidsElements;
+    // default query params
+    global $defaultParamSettings;
 
     // prepare sql
     $charset_collate = $wpdb->get_charset_collate();
@@ -178,11 +238,18 @@ function fids_api_activation() {
 		internal_title varchar (255) DEFAULT '',
 		UNIQUE KEY id (id)
 	) $charset_collate;";
+    $paramsTableSql = "CREATE TABLE IF NOT EXISTS $paramsTableName (
+		id mediumint(9) NOT NULL AUTO_INCREMENT,
+		param_key varchar (255) NOT NULL,
+		param_val varchar (255) NOT NULL DEFAULT '',
+		UNIQUE KEY id (id)
+	) $charset_collate;";
 
     // execute sql
     dbDelta($dataTableSql);
     dbDelta($settingsTableSql);
     dbDelta($fidsElementsTableSql);
+    dbDelta($paramsTableSql);
 
     // init DB
     $hasDefaultSettings = $wpdb->get_results("SELECT * FROM $fidsSettingsTableName WHERE state = 'default'");
@@ -204,6 +271,16 @@ function fids_api_activation() {
             ]);
         }
     }
+    $paramsExists = $wpdb->get_results("SELECT * FROM $paramsTableName");
+//    var_dump($paramsExists);exit;
+    if(count($paramsExists) < 1) {
+        foreach ($defaultParamSettings as $key => $val) {
+            $wpdb->insert($paramsTableName, [
+                'param_key' => $key,
+                'param_val' => $val
+            ]);
+        }
+    }
 
     if(!wp_next_scheduled('fids_fetch_cron_hook')) {
         wp_schedule_event(time(), 'fids_interval', 'fids_fetch_cron_hook');
@@ -218,7 +295,7 @@ function fids_api_deactivation() {
 }
 register_deactivation_hook( __FILE__, 'fids_api_deactivation');
 
-// PLUGIN DEACTIVATION
+// PLUGIN UNINSTALL
 function fids_api_uninstall() {
     global $wpdb;
     global $fidsDataTableName;
@@ -242,9 +319,25 @@ function fids_api_settings_menu_page() {
     global $wpdb;
     global $fidsSettingsTableName;
     global $fidsElementsTableName;
+    global $paramsTableName;
 
     $defaultSettings = $wpdb->get_results("SELECT * FROM $fidsSettingsTableName WHERE state = 'default'")[0];
     $elements = $wpdb->get_results("SELECT * FROM $fidsElementsTableName ORDER BY order_id");
+    $queryParams = $wpdb->get_results("SELECT * FROM $paramsTableName");
+    $sort1 = '';
+    $sort2 = '';
+    $sort3 = '';
+    foreach ($queryParams as $param) {
+        if($param->param_key == 'sort1') {
+            $sort1 = $param->param_val;
+        }
+        if($param->param_key == 'sort2') {
+            $sort2 = $param->param_val;
+        }
+        if($param->param_key == 'sort3') {
+            $sort3 = $param->param_val;
+        }
+    }
     wp_enqueue_script('jquery-ui-sortable');
 
     include_once(__DIR__ . '/views/admin/settings.php');
@@ -293,6 +386,9 @@ add_action('admin_post_fids_update_visible_elements', 'fids_admin_update_visible
 function fids_admin_update_general_settings() {
     global $wpdb;
     global $fidsSettingsTableName;
+    global $defaultParamSettings;
+    global $paramsTableName;
+
 
     $airports = implode(',', array_map(function($el) {
         return trim($el);
@@ -302,6 +398,14 @@ function fids_admin_update_general_settings() {
         'app_key' => $_POST['app_key'],
         'airports' => $airports
     ], ['state' => 'default']);
+
+    foreach ($defaultParamSettings as $key => $val) {
+        if(isset($_POST[$key])) {
+            $wpdb->update($paramsTableName, [
+                'param_val' => $_POST[$key]
+            ], ['param_key' => $key]);
+        }
+    }
 
     wp_redirect(admin_url('admin.php?page=fids-settings'));
 }
@@ -354,7 +458,7 @@ function getShortcodeHTML($attrAirport, $attrType) {
 
     // output
     ob_start();
-    include_once(__DIR__ . '/views/public/fids_shortcode.php');
+    include(__DIR__ . '/views/public/fids_shortcode.php');
     $out = ob_get_contents();
     ob_end_clean();
 
@@ -368,7 +472,11 @@ function fids_shortcode($attrs) {
     ), $attrs, 'fids' );
 
     $html = getShortcodeHTML($attrs['airport'], $attrs['type']);
-    $html .= '<script>const fidsAirport = "'. $attrs['airport'] .'"; const fidsType = "'. $attrs['type'] .'"</script>';
+    if($attrs['type'] == 'departures') {
+        $html .= '<script>const fidsAirport_departures = "'. $attrs['airport'] .'";</script>';
+    } else {
+        $html .= '<script>const fidsAirport_arrivals = "'. $attrs['airport'] .'";</script>';
+    }
 
     return $html;
 }

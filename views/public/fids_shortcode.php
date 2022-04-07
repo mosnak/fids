@@ -18,7 +18,7 @@ $arrayElementTypes = ['codesharesAsNames', 'codesharesAsCodes', 'uplineAirportNa
 
 ?>
 <!--PLUGIN STARTS FROM HERE-->
-<div id="fids">
+<div id="fids_<?php echo $attrType?>">
 <div class="fids-updated_locally">Data updated <span><?php echo $lastUpdatedBefore ?></span></div>
 <div class="fids-refresh-btn" style="display: none">Refresh data</div>
 <div class="fids-wrapper">

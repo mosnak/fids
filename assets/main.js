@@ -1,5 +1,5 @@
-const reloadInterval = 60 // one min
-const reloadCountMax = 30 // 30 times
+const reloadInterval = 10 // one min
+const reloadCountMax = 3 // 30 times
 let reloadCount = 0
 
 jQuery('document').ready(function() {
@@ -10,20 +10,38 @@ jQuery('document').ready(function() {
     })
 
     setInterval(function() {
+        console.log('interval')
         if(reloadCount < reloadCountMax) {
             reloadCount++;
-            jQuery.post(fids_client.ajax_url, {
-                    'action': 'fids',
-                    'airport': fidsAirport,
-                    'type': fidsType,
-                },
-                function(response) {
-                    jQuery('#fids').replaceWith(response)
-                    if(reloadCount === reloadCountMax) {
-                        jQuery('.fids-refresh-btn').css('display', 'block');
+            if(fidsAirport_departures != undefined){
+                jQuery.post(fids_client.ajax_url, {
+                        'action': 'fids',
+                        'airport': fidsAirport_departures,
+                        'type': 'departures',
+                    },
+                    function(response) {
+                        jQuery('#fids_departures').replaceWith(response)
+                        if(reloadCount === reloadCountMax) {
+                            jQuery('.fids-refresh-btn').css('display', 'block');
+                        }
                     }
-                }
-            );
+                );
+            }
+            if(fidsAirport_arrivals != undefined){
+                jQuery.post(fids_client.ajax_url, {
+                        'action': 'fids',
+                        'airport': fidsAirport_arrivals,
+                        'type': 'arrivals',
+                    },
+                    function(response) {
+                        jQuery('#fids_arrivals').replaceWith(response)
+                        if(reloadCount === reloadCountMax) {
+                            jQuery('.fids-refresh-btn').css('display', 'block');
+                        }
+                    }
+                );
+            }
+
             if(reloadCount === reloadCountMax) {
                 jQuery('.fids-refresh-btn').css('display', 'block');
             }
