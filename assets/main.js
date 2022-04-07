@@ -1,5 +1,5 @@
-const reloadInterval = 10 // one min
-const reloadCountMax = 3 // 30 times
+const reloadInterval = 60 // one min
+const reloadCountMax = 30 // 30 times
 let reloadCount = 0
 
 jQuery('document').ready(function() {
